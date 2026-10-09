@@ -1,0 +1,1155 @@
+# PROD DAILY | Complete Backend Implementation
+
+## Project Overview
+
+You are working on **Prod Daily**, an existing web application featuring daily Wordle puzzles, custom crosswords, user profiles, and an administrative dashboard.
+
+The frontend has already been designed and developed.
+
+Your task is to implement the complete backend using **Supabase Cloud**, integrating it with the existing frontend.
+
+### Technology Stack
+
+- Frontend: Existing React / TypeScript application
+- Database: Supabase PostgreSQL
+- Authentication: Supabase Auth with Discord OAuth
+- File Storage: Supabase Storage
+- Backend Logic: Supabase Edge Functions, PostgreSQL functions, and secure database operations where appropriate
+- Security: Row Level Security (RLS) and server-side permission validation
+
+Do not unnecessarily rebuild or redesign the existing frontend.
+
+Preserve existing components, layouts, styling, and interactions while replacing mock data and simulated backend functionality with real Supabase integrations.
+
+---
+
+# 1. Initial Project Assessment
+
+Before implementing anything:
+
+1. Examine the existing project structure.
+2. Identify the authentication placeholders.
+3. Identify existing user profile components.
+4. Identify dashboard pages and navigation.
+5. Identify Wordle and Crossword components and their current logic.
+6. Identify mock data and browser storage usage.
+7. Identify existing Supabase configuration, if any.
+8. Determine which existing components can be reused.
+
+Create an implementation plan before modifying the project.
+
+Follow the project's existing conventions wherever practical.
+
+Do not remove working functionality.
+
+## Environment Configuration
+
+Use environment variables for Supabase configuration.
+
+Create or update `.env.example` with required variable names and setup instructions.
+
+Never commit actual credentials.
+
+Never expose service-role keys, secret API keys, or Discord client secrets in browser code.
+
+---
+
+# 2. Database Architecture and Migrations
+
+Create a complete PostgreSQL schema for the application.
+
+## Migration Naming Convention
+
+Every database migration must have a clearly identifiable filename.
+
+Use the following convention:
+
+`migration_001_initial_schema.sql`
+
+`migration_002_auth_profiles.sql`
+
+`migration_003_roles_permissions.sql`
+
+Continue using sequential numbering.
+
+Never create database migrations without the `migration_` prefix.
+
+## Master SQL File
+
+Maintain a file named:
+
+`master_schema.sql`
+
+This file must represent the complete database schema required to set up Prod Daily on a fresh Supabase project.
+
+Whenever a migration is created or modified:
+
+1. Update the master SQL file.
+2. Keep all tables, indexes, functions, triggers, policies, and required seed data synchronized.
+3. Make the master file safe to execute on a fresh Supabase installation.
+4. Avoid duplicate definitions and conflicting policies.
+5. Preserve migration history.
+
+The master schema must not include production user data or secrets.
+
+Do not overwrite an existing production database with the master file.
+
+If the project already has migrations, inspect them and continue the existing sequence without rewriting applied migrations.
+
+## Database Requirements
+
+Use:
+- UUID primary keys where appropriate.
+- Foreign keys.
+- Appropriate unique constraints.
+- Timestamps with time zones.
+- Indexes for frequently queried columns.
+- Database-level validation.
+- Row Level Security.
+- Secure PostgreSQL functions where appropriate.
+
+Use `auth.users` as the source of authenticated identities.
+
+Do not create a separate password authentication system.
+
+---
+
+# 3. Discord Authentication
+
+Implement authentication using Supabase Auth with Discord as the OAuth provider.
+
+## Login Flow
+
+When a visitor clicks Sign in with Discord:
+
+1. Start the Supabase Discord OAuth flow.
+2. Redirect to Discord authorization.
+3. Process the Supabase authentication callback.
+4. Establish the authenticated session.
+5. Retrieve the authenticated user's Supabase ID and Discord identity.
+6. Check for an existing Prod Daily profile.
+7. If profile setup is incomplete, redirect to `/profile/setup`.
+8. Otherwise, return the user to the application.
+
+Use Supabase's authenticated identity information rather than trusting Discord IDs submitted by the frontend.
+
+## First-Time Login
+
+When a user authenticates for the first time:
+
+- Create a profile record automatically.
+- Assign the User role by default.
+- Store the Discord user ID.
+- Store the Discord username.
+- Store the Discord avatar URL.
+- Record the account creation timestamp.
+- Mark profile setup as incomplete.
+
+The initial profile creation must be idempotent to prevent duplicate records.
+
+Users with incomplete profiles should be directed to profile setup before accessing account-specific functionality.
+
+## Returning Users
+
+For returning users:
+
+- Restore their authenticated session.
+- Load their profile.
+- Load their role and applicable permissions.
+- Restore their personal preferences.
+- Continue to the requested page when authorized.
+
+Implement sign-out and session expiration handling.
+
+---
+
+# 4. Profile Creation and Management
+
+Create a profile onboarding page connected to Supabase.
+
+## Required Fields
+
+- First Name
+- Last Name
+- State ID
+
+## Optional Fields
+
+- Nickname
+- Custom Profile Picture
+
+## Automatically Populated Fields
+
+- Supabase User ID
+- Discord ID
+- Discord Username
+- Discord Avatar URL
+- Account Creation Date
+- Last Updated Date
+
+## Profile Picture
+
+Use the Discord avatar as the default profile picture.
+
+Allow users to upload a custom image using Supabase Storage.
+
+Requirements:
+- Accept common image formats.
+- Validate file type.
+- Enforce reasonable file size limits.
+- Use private or appropriately controlled storage access.
+- Prevent users from modifying another user's files.
+- Allow users to remove their custom picture and return to their Discord avatar.
+
+Do not trust client-provided MIME types alone.
+
+## Profile Rules
+
+- State IDs must be unique.
+- First and last names are required.
+- Nicknames are optional.
+- Users can edit their own profile details.
+- Users cannot edit their own role or permissions.
+- Users cannot edit their statistics directly.
+- Profile completion must be recorded.
+- Validate data on the backend.
+
+Handle duplicate State IDs and invalid inputs with clear error messages.
+
+---
+
+# 5. Roles and Permissions
+
+Implement a role-based access control system.
+
+## Initial Roles
+
+### Developer
+
+- Full application administration access.
+- Bypasses application-level permission restrictions.
+- Can manage all users, roles, permissions, puzzles, and settings.
+- Can view all administrative audit logs.
+- Cannot be assigned by non-Developers.
+
+The Developer bypass must operate through trusted backend authorization logic.
+
+Do not disable RLS or grant unrestricted database access to the browser.
+
+### Manager
+
+- Can access the staff dashboard.
+- Receives configurable permissions.
+- Can manage users and content only when authorized.
+
+### Staff
+
+- Can access the staff dashboard.
+- Receives configurable permissions.
+- Has no automatic administrative privileges beyond assigned permissions.
+
+### User
+
+- Default role.
+- Cannot access the staff dashboard.
+- Can manage their own profile.
+- Can play puzzles and view their own statistics.
+
+## Role Assignment
+
+Use one primary role per account.
+
+Roles:
+- Developer
+- Manager
+- Staff
+- User
+
+Do not implement multiple simultaneous roles unless the existing application already requires them.
+
+## Permissions
+
+Implement database-driven permissions.
+
+Initial permission keys should include:
+
+### Users
+- `users.view`
+- `users.edit`
+- `users.roles.manage`
+- `users.private.view`
+- `users.activity.view`
+
+### Wordle
+- `wordle.view`
+- `wordle.create`
+- `wordle.edit`
+- `wordle.publish`
+- `wordle.delete`
+
+### Crosswords
+- `crosswords.view`
+- `crosswords.create`
+- `crosswords.edit`
+- `crosswords.publish`
+- `crosswords.delete`
+
+### Administration
+- `audit.view`
+- `audit.export`
+- `permissions.manage`
+- `settings.manage`
+- `appearance.manage`
+
+Create tables for:
+- `roles`
+- `permissions`
+- `role_permissions`
+
+Associate each user with one role through a secure role assignment mechanism.
+
+Managers and Staff must receive permissions through their roles.
+
+Only Developers should automatically bypass application permission checks.
+
+## Developer Bootstrap
+
+Do not allow users to select or grant themselves the Developer role.
+
+Provide a documented, secure, one-time bootstrap process for assigning the initial Developer account using a trusted Supabase administrative environment.
+
+Do not hardcode a Discord ID or Supabase user ID in frontend code.
+
+Protect against accidental removal of the final active Developer account.
+
+---
+
+# 6. Dashboard Access Control
+
+The administrative dashboard must only be accessible to authorized roles.
+
+Authorized dashboard roles:
+- Developer
+- Manager
+- Staff
+
+User accounts must not access the dashboard.
+
+Implement:
+
+- Frontend route guards for user experience.
+- Server-side permission validation.
+- RLS policies for database access.
+- Permission-aware dashboard navigation.
+- Permission-aware action buttons.
+
+Hiding a button must never be treated as sufficient security.
+
+Every privileged operation must be authorized by the backend.
+
+Users without permission should receive a clear access-denied response.
+
+---
+
+# 7. User Management Dashboard
+
+Add or connect a **Users** page in the administration dashboard.
+
+## User List
+
+Display:
+- Profile picture.
+- Display name.
+- First and last name when authorized.
+- State ID when authorized.
+- Discord username when authorized.
+- Role.
+- Profile completion status.
+- Account creation date.
+- Last activity date.
+
+## Search and Filtering
+
+Support:
+- Search by name.
+- Search by nickname.
+- Search by State ID.
+- Search by Discord username.
+- Filter by role.
+- Filter by profile status.
+- Sort by creation date.
+- Sort by last activity.
+- Pagination.
+
+Use server-side filtering and pagination for large datasets.
+
+## User Details
+
+Selecting a user should open a detailed management page.
+
+Include tabs:
+
+1. Profile
+2. Wordle Statistics
+3. Crossword Statistics
+4. Gameplay Activity
+5. Administrative Audit History
+6. Role and Permissions
+
+Only display information the current staff member is authorized to access.
+
+## Role Management
+
+Authorized administrators can change a user's role.
+
+Requirements:
+- Validate permission on the backend.
+- Protect Developer role assignments.
+- Prevent unauthorized privilege escalation.
+- Prevent removal of the final Developer.
+- Record role changes in audit logs.
+- Apply new permissions without requiring a new login where practical.
+
+Do not allow Managers or Staff to assign themselves higher roles.
+
+---
+
+# 8. Administrative Audit Logging
+
+Implement a comprehensive, append-only audit logging system.
+
+Audit logs must record meaningful actions performed through the dashboard and privileged backend operations.
+
+## Actions to Track
+
+### Authentication and Security
+- Administrative login events.
+- Logout events where observable.
+- Authorization failures.
+- Rejected privileged operations.
+- Suspicious access attempts.
+
+### User Management
+- User profile edits by staff.
+- Role changes.
+- Permission changes.
+- Account restrictions.
+- Administrative user actions.
+
+### Wordle Management
+- Puzzle creation.
+- Puzzle editing.
+- Puzzle scheduling.
+- Publishing.
+- Unpublishing.
+- Deletion.
+
+### Crossword Management
+- Puzzle creation.
+- Puzzle editing.
+- Publishing.
+- Unpublishing.
+- Deletion.
+
+### Settings
+- Application configuration changes.
+- Default appearance changes.
+- Administrative settings changes.
+
+### Files
+- Administrative file uploads.
+- File replacements.
+- File deletions.
+
+## Audit Log Schema
+
+Create an `audit_logs` table containing:
+
+- Unique log ID.
+- Actor user ID.
+- Action identifier.
+- Category.
+- Target record type.
+- Target record ID.
+- Previous values.
+- Updated values.
+- Safe additional metadata.
+- Request ID.
+- IP address when available.
+- Event result.
+- Timestamp.
+
+Use JSONB for previous and updated values.
+
+Redact sensitive fields.
+
+Never store:
+- OAuth access tokens.
+- Refresh tokens.
+- Passwords.
+- API secrets.
+- Session credentials.
+
+## Audit Security
+
+- Generate audit entries through trusted backend operations.
+- Use database triggers for appropriate database mutations.
+- Record successful mutations atomically with their database transactions.
+- Record rejected operations through a separate trusted logging path.
+- Do not allow ordinary users or staff to edit or delete audit entries.
+- Developers can view logs but should not be able to alter historical entries through the application.
+- Use separate infrastructure/database auditing for direct privileged database administration.
+
+## Audit Dashboard
+
+Create an Audit Logs page.
+
+Features:
+- Search.
+- Date range filtering.
+- Category filtering.
+- Actor filtering.
+- Action filtering.
+- Success/failure filtering.
+- Pagination.
+- Detailed event inspection.
+- Old/new value comparison.
+- CSV export for authorized users.
+
+---
+
+# 9. User-Specific Activity History
+
+Implement a user-specific activity history system.
+
+Keep gameplay activity separate from administrative audit logs.
+
+## Gameplay Activity
+
+Track meaningful events such as:
+- Wordle started.
+- Wordle completed.
+- Wordle failed.
+- Crossword started.
+- Crossword completed.
+- Crossword resumed.
+- Streak achieved.
+- Streak broken.
+- Personal best achieved.
+
+Do not create an activity record for every keystroke.
+
+## Administrative History
+
+Within the Users dashboard, authorized staff should be able to view audit records affecting the selected user.
+
+Include:
+- Who performed the action.
+- What was changed.
+- When it occurred.
+- Previous and updated values where appropriate.
+
+Apply the same audit permissions and private-field redaction rules used by the main audit system.
+
+---
+
+# 10. Daily Wordle Backend
+
+Replace the mock Wordle data with Supabase-backed daily puzzles.
+
+## Puzzle Management
+
+Administrators must be able to:
+- Create daily words.
+- Schedule future words.
+- Edit scheduled puzzles.
+- Publish puzzles.
+- View previous puzzles.
+- Delete or unpublish puzzles when authorized.
+
+Each daily puzzle should contain:
+- Unique ID.
+- Puzzle date.
+- Answer.
+- Status.
+- Created by.
+- Updated by.
+- Creation timestamp.
+- Update timestamp.
+
+Use a consistent application timezone for daily puzzle boundaries.
+
+Keep the timezone configurable, with a documented default.
+
+Prevent conflicting published puzzles for the same date.
+
+## Secure Gameplay
+
+Do not expose the answer to the frontend before the user has completed the puzzle or the puzzle has expired.
+
+Implement server-side guess validation.
+
+The server must:
+- Verify the authenticated user.
+- Verify the active puzzle.
+- Validate guess length and format.
+- Enforce six guesses.
+- Reject guesses after completion.
+- Reject duplicate completion submissions.
+- Calculate letter feedback correctly, including repeated letters.
+- Record each valid guess.
+- Return the appropriate feedback.
+- Mark the puzzle as won or lost.
+
+Use trusted backend operations to prevent users from manipulating statistics.
+
+## Wordle Progress
+
+Track:
+- Puzzle ID.
+- User ID.
+- Guess count.
+- Submitted guesses.
+- Guess feedback.
+- Start timestamp.
+- Completion timestamp.
+- Win/loss result.
+
+Only allow one official attempt per user per daily puzzle.
+
+Use database constraints and transactional operations to prevent duplicate attempts.
+
+---
+
+# 11. Wordle Statistics and Streaks
+
+Track comprehensive statistics for every user.
+
+## Statistics
+
+- Games played.
+- Games won.
+- Games lost.
+- Win percentage.
+- Current streak.
+- Longest streak.
+- Total guesses.
+- Average guesses per win.
+- Guess distribution from 1 to 6.
+- Last played date.
+- Last winning date.
+- Complete puzzle history.
+
+## Streak Rules
+
+- Winning consecutive daily puzzles increases the streak.
+- Losing breaks the streak.
+- Missing a day breaks the streak.
+- Replaying a completed puzzle cannot increase the streak.
+- A user's streak should remain visible during the day before the next puzzle deadline passes.
+- All streak calculations must use the application's configured timezone.
+
+Handle date changes, missed days, and delayed requests correctly.
+
+## Data Integrity
+
+Calculate statistics from verified puzzle attempts.
+
+Use transactional updates or derived queries.
+
+If cached statistics are maintained, provide a way to recalculate them from the underlying attempt records.
+
+Users must never be able to submit arbitrary win totals or streak values.
+
+---
+
+# 12. Crossword Backend
+
+Replace the mock crossword storage with Supabase.
+
+## Puzzle Management
+
+Administrators can:
+- Create puzzles.
+- Edit puzzles.
+- Save drafts.
+- Publish puzzles.
+- Unpublish puzzles.
+- Delete puzzles.
+- Schedule publication where supported.
+
+Store:
+- Puzzle ID.
+- Title.
+- Description.
+- Difficulty.
+- Grid dimensions.
+- Grid definition.
+- Answer key.
+- Across clues.
+- Down clues.
+- Publication status.
+- Publication date.
+- Created by.
+- Updated by.
+- Timestamps.
+
+Use JSONB where appropriate for structured crossword data.
+
+## Crossword Generator
+
+Preserve the existing frontend crossword creation interface.
+
+Store generated grids and clue data in Supabase.
+
+Validate puzzle structure before publication.
+
+Validation should include:
+- Grid dimensions.
+- Clue numbering.
+- Answer placement.
+- Valid intersections.
+- Missing clues.
+- Duplicate or conflicting entries.
+- Unplaced words.
+
+Reject invalid puzzles rather than silently publishing them.
+
+## Answer Security
+
+Do not expose unpublished puzzles or answer keys through public database queries.
+
+Provide a player-safe puzzle representation containing only the information needed to solve the crossword.
+
+Keep solution validation in trusted backend logic.
+
+---
+
+# 13. Crossword Progress and Statistics
+
+## Progress Tracking
+
+Allow users to:
+- Start a crossword.
+- Save progress.
+- Resume later.
+- Complete the puzzle.
+- View their previous results.
+
+Store:
+- User ID.
+- Puzzle ID.
+- Entered letters.
+- Start timestamp.
+- Last activity timestamp.
+- Completion timestamp.
+- Completion status.
+- Hint usage.
+- Reveal usage.
+- Check usage.
+- Active solving time.
+
+Use appropriate debouncing or batching for progress saves.
+
+Do not write to the database on every individual keystroke.
+
+## Statistics
+
+Track:
+- Crosswords started.
+- Crosswords completed.
+- Completion percentage.
+- Average completion time.
+- Fastest completion.
+- Total active solving time.
+- Hints used.
+- Reveals used.
+- Checks used.
+- Last played date.
+- Completion history.
+
+Distinguish between:
+- Clean completions.
+- Assisted completions.
+
+Do not count revealed solutions as clean solves.
+
+Use server-side validation for official completions.
+
+---
+
+# 14. User Statistics System
+
+Create a unified user statistics system.
+
+Every user, including Developers, Managers, and Staff, must have the same player statistics functionality.
+
+Roles must not affect gameplay statistics.
+
+## User Profile Statistics
+
+Show:
+- Total puzzles played.
+- Total puzzles completed.
+- Overall completion percentage.
+- Wordle statistics.
+- Crossword statistics.
+- Current Wordle streak.
+- Best Wordle streak.
+- Personal records.
+- Recent puzzle activity.
+
+Avoid combining unrelated game metrics in misleading ways.
+
+For example, maintain separate Wordle and Crossword streak calculations.
+
+## Daily Activity Calendar
+
+Create a calendar-style activity visualization.
+
+Show which days the user completed puzzles.
+
+Use verified completion records as the source.
+
+## Statistics Integrity
+
+Statistics must be calculated from authoritative gameplay records.
+
+Prevent users from editing:
+- Win counts.
+- Streaks.
+- Completion times.
+- Guess distributions.
+- Puzzle completion status.
+
+---
+
+# 15. Public Profiles and Privacy
+
+Implement three levels of profile visibility.
+
+## Public Profile
+
+Other users can view:
+- Nickname or safe display name.
+- Profile picture.
+- Basic puzzle statistics.
+- Streaks.
+- Personal bests.
+
+Do not expose real names as a public fallback when a nickname is missing. Use a generated display name instead.
+
+## Own Profile
+
+Authenticated users can view:
+- Their complete profile.
+- Their own private identifiers.
+- Their full Wordle history.
+- Their full Crossword history.
+- Their gameplay activity.
+- Their personal statistics.
+
+Users cannot view administrative audit logs simply because those logs concern their account.
+
+## Authorized Staff
+
+Staff with the appropriate permissions can view:
+- Private profile information.
+- Detailed puzzle history.
+- Gameplay activity.
+- Administrative audit history.
+- Role and permission information.
+
+Apply permission checks independently to sensitive sections.
+
+## Database Privacy
+
+Do not expose the full profiles table through public queries.
+
+Use restricted views, secure functions, or other controlled query interfaces for public profiles.
+
+Apply RLS to all relevant tables.
+
+Protect:
+- Real names.
+- State IDs.
+- Discord identifiers.
+- Private gameplay history.
+- Administrative audit records.
+
+Do not assume frontend filtering provides privacy.
+
+---
+
+# 16. Supabase Storage
+
+Create storage configuration for profile pictures.
+
+Requirements:
+- User-specific file paths.
+- Upload authorization.
+- File size restrictions.
+- Image type validation.
+- Safe replacement and deletion.
+- No access to another user's private files.
+- Appropriate avatar delivery through public-safe assets or controlled URLs.
+
+Prevent unauthorized file overwrites.
+
+Remove obsolete custom avatars when appropriate.
+
+Do not expose sensitive storage paths or privileged storage operations unnecessarily.
+
+---
+
+# 17. Frontend Integration
+
+Connect the existing frontend to the Supabase backend.
+
+Replace mock functionality incrementally.
+
+## Authentication
+- Connect Discord sign-in.
+- Connect sign-out.
+- Implement session restoration.
+- Implement profile setup redirects.
+
+## Profiles
+- Load real profile data.
+- Save profile changes.
+- Upload custom avatars.
+- Display public and private profile information appropriately.
+
+## Dashboard
+- Load real user records.
+- Apply role-based navigation.
+- Connect role management.
+- Connect audit logs.
+- Connect user-specific activity history.
+
+## Wordle
+- Load the active daily puzzle.
+- Submit guesses securely.
+- Restore existing attempts.
+- Display real statistics.
+- Display streaks.
+
+## Crosswords
+- Load published puzzles.
+- Connect puzzle creation and editing.
+- Save progress.
+- Restore progress.
+- Validate completion.
+- Display statistics.
+
+Maintain existing loading, empty, success, and error states.
+
+Avoid duplicate requests and unnecessary database queries.
+
+---
+
+# 18. Security Requirements
+
+Security must be implemented at the database and backend layers.
+
+Requirements:
+
+- Enable RLS on application tables.
+- Use least-privilege policies.
+- Validate user identity on privileged operations.
+- Validate permissions server-side.
+- Protect administrative functions.
+- Prevent privilege escalation.
+- Prevent users from changing their own roles.
+- Prevent arbitrary statistics updates.
+- Prevent unauthorized puzzle publication.
+- Protect unpublished Wordle answers.
+- Protect crossword answer keys.
+- Prevent unauthorized audit log modification.
+- Use parameterized queries or safe database interfaces.
+- Avoid leaking private information through error messages.
+- Keep privileged credentials server-side.
+- Add reasonable rate limiting for sensitive operations.
+- Make privileged actions idempotent where appropriate.
+
+Use carefully scoped `SECURITY DEFINER` functions only when necessary.
+
+Set safe search paths and restrict function execution privileges.
+
+Do not trust user-controlled metadata for authorization.
+
+---
+
+# 19. Testing and Validation
+
+Implement or document tests for:
+
+### Authentication
+- New Discord user.
+- Returning Discord user.
+- Incomplete profile.
+- Expired session.
+- Logout.
+
+### Authorization
+- User denied dashboard access.
+- Staff permission enforcement.
+- Manager permission enforcement.
+- Developer access.
+- Unauthorized role assignment.
+- Attempted self-promotion.
+- Final Developer protection.
+
+### Wordle
+- Correct guess.
+- Incorrect guess.
+- Repeated-letter feedback.
+- Six-guess limit.
+- Duplicate submissions.
+- Streak increases.
+- Streak breaks.
+- Missed days.
+- Date rollover.
+- Unauthorized statistics modification.
+
+### Crosswords
+- Draft creation.
+- Publishing.
+- Invalid grid rejection.
+- Progress saving.
+- Progress restoration.
+- Completion validation.
+- Assisted completion tracking.
+
+### Audit Logs
+- Role changes logged.
+- Puzzle changes logged.
+- Settings changes logged.
+- Unauthorized operations recorded where applicable.
+- Audit modification rejected.
+- Sensitive values redacted.
+
+### Privacy
+- Public profile restrictions.
+- Private user data isolation.
+- Staff permission restrictions.
+- Answer key protection.
+- Storage access restrictions.
+
+Do not claim tests passed unless they were actually executed.
+
+---
+
+# 20. Documentation
+
+Create clear documentation explaining:
+
+1. Supabase project setup.
+2. Discord OAuth configuration.
+3. Required environment variables.
+4. Database migration execution.
+5. Master schema installation.
+6. Initial Developer account bootstrap.
+7. Role and permission management.
+8. Storage bucket configuration.
+9. Edge Function deployment.
+10. RLS security design.
+11. Audit logging architecture.
+12. Statistics and streak calculations.
+13. Local development and testing.
+
+Document any manual Supabase Dashboard steps.
+
+Never include actual credentials or secrets in documentation.
+
+---
+
+# 21. Implementation Process
+
+Implement the backend in the following order:
+
+**Phase 1: Foundation**
+- Inspect existing project.
+- Configure Supabase.
+- Create database schema.
+- Create migrations.
+- Create master SQL file.
+- Configure RLS.
+
+**Phase 2: Authentication and Profiles**
+- Discord OAuth.
+- Session handling.
+- Automatic profile creation.
+- Profile onboarding.
+- Avatar uploads.
+
+**Phase 3: Roles and Permissions**
+- Role assignment.
+- Permission system.
+- Developer bootstrap.
+- Dashboard authorization.
+- User management.
+
+**Phase 4: Audit Logging**
+- Administrative audit system.
+- Dashboard audit viewer.
+- User-specific administrative history.
+- Gameplay activity events.
+
+**Phase 5: Wordle Backend**
+- Daily puzzle management.
+- Secure guess validation.
+- Attempt tracking.
+- Statistics.
+- Streak calculations.
+
+**Phase 6: Crossword Backend**
+- Puzzle management.
+- Publishing.
+- Secure answer validation.
+- Progress saving.
+- Completion tracking.
+- Statistics.
+
+**Phase 7: Profiles and Statistics**
+- Public profiles.
+- Private profiles.
+- User statistics dashboard.
+- Activity calendar.
+- Personal records.
+
+**Phase 8: Final Integration**
+- Remove obsolete mock backend behavior.
+- Verify existing frontend interactions.
+- Test authorization.
+- Test data privacy.
+- Test gameplay integrity.
+- Update documentation.
+
+---
+
+# Final Instructions
+
+This is an existing frontend application. Do not redesign it.
+
+Build a secure, maintainable backend using Supabase Cloud.
+
+Preserve the existing frontend appearance and functionality.
+
+Use Discord OAuth for authentication.
+
+Every account receives a user profile, regardless of staff role.
+
+Implement one primary role per user with database-driven permissions.
+
+Implement comprehensive administrative audit logging and separate gameplay activity tracking.
+
+Track complete Wordle and Crossword statistics, including progress, completion history, streaks, and personal records.
+
+Keep private profile information protected.
+
+Maintain consistent database migration filenames and update `master_schema.sql` whenever migrations change.
+
+**Before making changes, inspect the existing codebase and present a phased implementation plan. Then implement the phases in order, validating each phase before moving to the next.**
+
+Do not silently skip unfinished functionality. Clearly report any missing Supabase credentials, OAuth configuration, required deployment steps, or features that cannot be completed locally.
