@@ -57,7 +57,7 @@ function routeToPath(route: Route): string {
     case 'profile-setup':
       return '/profile/setup';
     case 'profile-edit':
-      return '/profile/edit';
+      return '/profile';
     case 'profile':
       return `/profile/${route.id}`;
     case 'login':

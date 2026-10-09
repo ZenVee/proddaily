@@ -37,6 +37,11 @@ export interface PermissionRow {
   description: string;
 }
 
+export interface RolePermissionRow {
+  role_id: string;
+  permission_id: string;
+}
+
 export interface WordleStatsRow {
   user_id: string;
   games_played: number;
@@ -96,6 +101,11 @@ export type Database = {
       profiles: { Row: ProfileRow; Insert: Partial<ProfileRow>; Update: Partial<ProfileRow> };
       roles: { Row: RoleRow; Insert: Partial<RoleRow>; Update: Partial<RoleRow> };
       permissions: { Row: PermissionRow; Insert: Partial<PermissionRow>; Update: Partial<PermissionRow> };
+      role_permissions: {
+        Row: RolePermissionRow;
+        Insert: RolePermissionRow;
+        Update: Partial<RolePermissionRow>;
+      };
       wordle_stats: { Row: WordleStatsRow; Insert: Partial<WordleStatsRow>; Update: Partial<WordleStatsRow> };
       crossword_stats: { Row: CrosswordStatsRow; Insert: Partial<CrosswordStatsRow>; Update: Partial<CrosswordStatsRow> };
       audit_logs: { Row: AuditLogRow; Insert: Partial<AuditLogRow>; Update: Partial<AuditLogRow> };

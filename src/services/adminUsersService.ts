@@ -6,9 +6,14 @@ export interface AdminUserListItem extends ProfileRow {
   role_label?: string;
 }
 
+export type UserRoleGroup = 'staff' | 'players';
+
+const STAFF_ROLE_KEYS: AppRole[] = ['developer', 'manager', 'staff'];
+
 export async function listUsers(params: {
   search?: string;
   role?: AppRole | 'all';
+  roleGroup?: UserRoleGroup;
   profileStatus?: 'all' | 'complete' | 'incomplete';
   sort?: 'created' | 'activity';
   page?: number;
@@ -19,9 +24,19 @@ export async function listUsers(params: {
   const from = page * pageSize;
   const to = from + pageSize - 1;
 
+  const useRoleJoin = Boolean(params.roleGroup) || (params.role && params.role !== 'all');
+
   let query = supabase
     .from('profiles')
-    .select('*, roles(key, label)', { count: 'exact' });
+    .select(useRoleJoin ? '*, roles!inner(key, label)' : '*, roles(key, label)', { count: 'exact' });
+
+  if (params.roleGroup === 'staff') {
+    query = query.in('roles.key', STAFF_ROLE_KEYS);
+  } else if (params.roleGroup === 'players') {
+    query = query.eq('roles.key', 'user');
+  } else if (params.role && params.role !== 'all') {
+    query = query.eq('roles.key', params.role);
+  }
 
   if (params.search?.trim()) {
     const q = `%${params.search.trim()}%`;
@@ -45,7 +60,7 @@ export async function listUsers(params: {
   const { data, error, count } = await query.range(from, to);
   if (error) throw error;
 
-  let rows = (data ?? []).map((row) => {
+  const rows = (data ?? []).map((row) => {
     const roles = row.roles as { key: AppRole; label: string } | { key: AppRole; label: string }[] | null;
     const roleObj = Array.isArray(roles) ? roles[0] : roles;
     const { roles: _r, ...rest } = row as ProfileRow & { roles: unknown };
@@ -55,10 +70,6 @@ export async function listUsers(params: {
       role_label: roleObj?.label,
     } as AdminUserListItem;
   });
-
-  if (params.role && params.role !== 'all') {
-    rows = rows.filter((r) => r.role_key === params.role);
-  }
 
   return { rows, total: count ?? rows.length };
 }
