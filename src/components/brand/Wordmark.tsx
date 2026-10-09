@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
 import { cn } from '@/utils/helpers';
+import { useTheme } from '@/state/ThemeContext';
+import { loadImage, tintLogoTan } from '@/utils/tintLogo';
 
 interface WordmarkProps {
   size?: 'compact' | 'footer' | 'hero';
@@ -47,21 +50,59 @@ function Line({
 }
 
 const LOGO_SRC = '/prod-daily-logo-big.png';
+const DEFAULT_ACCENT = '#D4B896';
 
 const LOGO_HEIGHT: Record<'compact' | 'footer', string> = {
   compact: 'h-10 sm:h-11',
   footer: 'h-9',
 };
 
+function AccentLogo({
+  size,
+  className,
+}: {
+  size: 'compact' | 'footer';
+  className?: string;
+}) {
+  const { theme } = useTheme();
+  const accent = theme.primary;
+  const [src, setSrc] = useState(LOGO_SRC);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (accent.toLowerCase() === DEFAULT_ACCENT.toLowerCase()) {
+      setSrc(LOGO_SRC);
+      return;
+    }
+
+    loadImage(LOGO_SRC)
+      .then((img) => {
+        if (cancelled) return;
+        const tinted = tintLogoTan(img, accent);
+        if (tinted) setSrc(tinted);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc(LOGO_SRC);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accent]);
+
+  return (
+    <img
+      src={src}
+      alt="PROD DAILY"
+      className={cn(LOGO_HEIGHT[size], 'w-auto max-w-[min(100%,14rem)] object-contain object-left', className)}
+    />
+  );
+}
+
 export function Wordmark({ size = 'compact', className }: WordmarkProps) {
   if (size === 'compact' || size === 'footer') {
-    return (
-      <img
-        src={LOGO_SRC}
-        alt="PROD DAILY"
-        className={cn(LOGO_HEIGHT[size], 'w-auto max-w-[min(100%,14rem)] object-contain object-left', className)}
-      />
-    );
+    return <AccentLogo size={size} className={className} />;
   }
 
   return (
