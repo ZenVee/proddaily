@@ -46,13 +46,28 @@ function Line({
   );
 }
 
+const LOGO_SRC = '/prod-daily-logo-big.png';
+
+const LOGO_HEIGHT: Record<'compact' | 'footer', string> = {
+  compact: 'h-10 sm:h-11',
+  footer: 'h-9',
+};
+
 export function Wordmark({ size = 'compact', className }: WordmarkProps) {
-  const compact = size !== 'hero';
+  if (size === 'compact' || size === 'footer') {
+    return (
+      <img
+        src={LOGO_SRC}
+        alt="PROD DAILY"
+        className={cn(LOGO_HEIGHT[size], 'w-auto max-w-[min(100%,14rem)] object-contain object-left', className)}
+      />
+    );
+  }
 
   return (
-    <span className={cn('wordmark', `wordmark-${size}`, className)} role="img" aria-label="PROD DAILY">
-      <Line letters={PROD} compact={compact} />
-      <Line letters={DAILY} compact={compact} />
+    <span className={cn('wordmark', 'wordmark-hero', className)} role="img" aria-label="PROD DAILY">
+      <Line letters={PROD} />
+      <Line letters={DAILY} />
       <span className="wordmark-underline" aria-hidden="true" />
     </span>
   );
