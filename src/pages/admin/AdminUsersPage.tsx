@@ -7,7 +7,7 @@ import { useRouter } from '@/state/RouterContext';
 import { useAuth } from '@/state/AuthContext';
 import { listUsers, type AdminUserListItem } from '@/services/adminUsersService';
 import { avatarPublicUrl } from '@/services/profileService';
-import { cn } from '@/utils/helpers';
+import { cn, formatLocalDate } from '@/utils/helpers';
 
 type UsersTab = 'list' | 'permissions';
 
@@ -61,7 +61,7 @@ function UserTable({
                 </td>
                 <td className="p-3 capitalize">{u.role_label ?? u.role_key}</td>
                 <td className="p-3">{u.profile_setup_complete ? 'Complete' : 'Incomplete'}</td>
-                <td className="p-3 text-proddaily-text-2">{u.created_at.slice(0, 10)}</td>
+                <td className="p-3 text-proddaily-text-2">{formatLocalDate(u.created_at)}</td>
                 <td className="p-3 text-right">
                   <Button size="sm" variant="secondary" onClick={() => onOpen(u.id)}>
                     Open

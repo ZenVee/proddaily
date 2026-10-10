@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/state/AuthContext';
 import { auditLogsToCsv, listAuditLogs } from '@/services/adminUsersService';
 import type { AuditLogRow } from '@/types/database';
+import { formatLocalDateTime } from '@/utils/helpers';
 
 export function AdminAuditPage() {
   const { hasPermission } = useAuth();
@@ -93,7 +94,7 @@ export function AdminAuditPage() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-proddaily-border">
-                <td className="p-3 text-proddaily-text-2">{r.created_at.slice(0, 19)}</td>
+                <td className="p-3 text-proddaily-text-2">{formatLocalDateTime(r.created_at)}</td>
                 <td className="p-3">{r.action}</td>
                 <td className="p-3">{r.category}</td>
                 <td className="p-3">{r.result}</td>

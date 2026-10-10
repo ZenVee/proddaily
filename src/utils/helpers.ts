@@ -29,6 +29,37 @@ export function formatDisplayDate(s: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function parseTimestamp(iso: string): Date | null {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function formatLocalDateTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = parseTimestamp(iso);
+  if (!d) return iso;
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+export function formatLocalDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = parseTimestamp(iso);
+  if (!d) return iso;
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+export function localDateKey(iso: string): string {
+  const d = parseTimestamp(iso);
+  if (!d) return iso.slice(0, 10);
+  return formatDate(d);
+}
+
 export function uid(): string {
   return Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
 }

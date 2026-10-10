@@ -4,7 +4,7 @@ import { avatarPublicUrl, getPublicProfile } from '@/services/profileService';
 import { useAuth } from '@/state/AuthContext';
 import { useRouter } from '@/state/RouterContext';
 import { supabase } from '@/lib/supabase';
-import { formatElapsed } from '@/utils/helpers';
+import { formatElapsed, localDateKey } from '@/utils/helpers';
 
 interface Props {
   id: string;
@@ -59,7 +59,7 @@ export function PublicProfilePage({ id }: Props) {
       .order('created_at', { ascending: false })
       .limit(180)
       .then(({ data: rows }) => {
-        setCalendar([...new Set((rows ?? []).map((r) => String(r.created_at).slice(0, 10)))]);
+        setCalendar([...new Set((rows ?? []).map((r) => localDateKey(String(r.created_at))))]);
       });
   }, [isOwn, profileId]);
 

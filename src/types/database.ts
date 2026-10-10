@@ -135,8 +135,35 @@ export type Database = {
       get_public_profile: { Args: { p_user_id: string }; Returns: unknown };
       get_public_profile_by_ref: { Args: { p_ref: string }; Returns: unknown };
       admin_set_user_role: { Args: { p_user_id: string; p_role: AppRole }; Returns: ProfileRow };
+      admin_list_user_game_history: { Args: { p_user_id: string }; Returns: unknown };
+      admin_reset_user_stats: {
+        Args: {
+          p_user_id: string;
+          p_scope: string;
+          p_puzzle_date?: string | null;
+          p_word?: string | null;
+          p_puzzle_id?: string | null;
+        };
+        Returns: unknown;
+      };
       get_active_wordle_puzzle: { Args: Record<string, never>; Returns: unknown };
       submit_wordle_guess: { Args: { p_guess: string }; Returns: unknown };
+      is_allowed_wordle_word: { Args: { p_word: string }; Returns: boolean };
+      admin_search_wordle_words: {
+        Args: { p_query?: string; p_limit?: number; p_offset?: number };
+        Returns: { total: number; words: string[] };
+      };
+      admin_add_wordle_word: { Args: { p_word: string }; Returns: undefined };
+      admin_add_wordle_words: {
+        Args: { p_words: string[] };
+        Returns: {
+          added: number;
+          skipped: number;
+          invalid: number;
+          invalid_sample: string[];
+        };
+      };
+      admin_remove_wordle_word: { Args: { p_word: string }; Returns: undefined };
       get_published_crosswords: { Args: Record<string, never>; Returns: unknown };
       get_crossword_for_play: { Args: { p_puzzle_id: string }; Returns: unknown };
       save_crossword_progress: {

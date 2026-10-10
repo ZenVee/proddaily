@@ -97,6 +97,77 @@ export async function setUserRole(userId: string, role: AppRole): Promise<Profil
   return data as ProfileRow;
 }
 
+export type StatsResetScope =
+  | 'all'
+  | 'wordle_all'
+  | 'crossword_all'
+  | 'wordle_day'
+  | 'wordle_word'
+  | 'crossword_puzzle';
+
+export interface UserWordleHistoryRow {
+  attempt_id: string;
+  puzzle_id: string;
+  puzzle_date: string;
+  answer: string;
+  status: 'in_progress' | 'won' | 'lost';
+  guess_count: number;
+  completed_at: string | null;
+}
+
+export interface UserCrosswordHistoryRow {
+  progress_id: string;
+  puzzle_id: string;
+  title: string;
+  status: string;
+  active_seconds: number;
+  assisted: boolean;
+  completed_at: string | null;
+  last_activity_at: string;
+}
+
+export interface UserGameHistory {
+  wordle: UserWordleHistoryRow[];
+  crossword: UserCrosswordHistoryRow[];
+}
+
+export interface StatsResetResult {
+  scope: StatsResetScope;
+  deleted_attempts: number;
+  deleted_progress: number;
+  deleted_activity: number;
+}
+
+export async function listUserGameHistory(userId: string): Promise<UserGameHistory> {
+  const { data, error } = await supabase.rpc('admin_list_user_game_history', {
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  const payload = (data ?? {}) as Partial<UserGameHistory>;
+  return {
+    wordle: payload.wordle ?? [],
+    crossword: payload.crossword ?? [],
+  };
+}
+
+export async function resetUserStats(params: {
+  userId: string;
+  scope: StatsResetScope;
+  puzzleDate?: string | null;
+  word?: string | null;
+  puzzleId?: string | null;
+}): Promise<StatsResetResult> {
+  const { data, error } = await supabase.rpc('admin_reset_user_stats', {
+    p_user_id: params.userId,
+    p_scope: params.scope,
+    p_puzzle_date: params.puzzleDate ?? null,
+    p_word: params.word ?? null,
+    p_puzzle_id: params.puzzleId ?? null,
+  });
+  if (error) throw error;
+  return data as StatsResetResult;
+}
+
 export async function listAuditLogs(params: {
   search?: string;
   category?: string;

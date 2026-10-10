@@ -334,9 +334,30 @@ a:hover .wordmark {
   100% { transform: scale(1); }
 }
 @keyframes tile-flip {
-  0% { transform: rotateX(0); }
-  50% { transform: rotateX(90deg); }
-  100% { transform: rotateX(0); }
+  0% {
+    transform: rotateX(0);
+    background-color: var(--pd-card);
+    border-color: #5a5a5a;
+    color: var(--pd-text);
+  }
+  49.9% {
+    transform: rotateX(90deg);
+    background-color: var(--pd-card);
+    border-color: #5a5a5a;
+    color: var(--pd-text);
+  }
+  50% {
+    transform: rotateX(90deg);
+    background-color: var(--reveal-bg);
+    border-color: var(--reveal-border);
+    color: #fff;
+  }
+  100% {
+    transform: rotateX(0);
+    background-color: var(--reveal-bg);
+    border-color: var(--reveal-border);
+    color: #fff;
+  }
 }
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
@@ -344,7 +365,12 @@ a:hover .wordmark {
   40%, 80% { transform: translateX(4px); }
 }
 .animate-tile-pop { animation: tile-pop 0.15s ease-in-out; }
-.animate-tile-flip { animation: tile-flip 0.5s ease forwards; }
+.animate-tile-flip {
+  animation: tile-flip 0.5s ease forwards;
+  background-color: var(--pd-card);
+  border-color: #5a5a5a;
+  color: var(--pd-text);
+}
 .animate-shake { animation: shake 0.4s ease; }
 
 @keyframes fade-in {
@@ -371,6 +397,11 @@ a:hover .wordmark {
   .wordmark {
     animation: none !important;
     transition: none !important;
+  }
+  .animate-tile-flip {
+    background-color: var(--reveal-bg, var(--pd-card));
+    border-color: var(--reveal-border, #5a5a5a);
+    color: #fff;
   }
   .lift-hover:hover,
   .btn-ink:active {

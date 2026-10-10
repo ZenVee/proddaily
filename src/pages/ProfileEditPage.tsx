@@ -14,7 +14,7 @@ import {
   uploadCustomAvatar,
 } from '@/services/profileService';
 import type { CrosswordStatsRow, WordleStatsRow } from '@/types/database';
-import { cn, formatElapsed } from '@/utils/helpers';
+import { cn, formatElapsed, localDateKey } from '@/utils/helpers';
 import { buildProfileSlug } from '@/utils/profileSlug';
 
 function displayName(profile: {
@@ -67,7 +67,7 @@ export function ProfileEditPage() {
       .order('created_at', { ascending: false })
       .limit(180)
       .then(({ data: rows }) => {
-        setCalendar([...new Set((rows ?? []).map((r) => String(r.created_at).slice(0, 10)))]);
+        setCalendar([...new Set((rows ?? []).map((r) => localDateKey(String(r.created_at))))]);
       });
   }, [user?.id]);
 

@@ -11,12 +11,12 @@ import { useRouter } from '@/state/RouterContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import {
   getKeyboardStatus,
-  isValidGuess,
   buildShareText,
   buildShareTextFromFeedback,
   WORDLE_MAX_GUESSES,
   WORDLE_WORD_LENGTH,
   evaluateGuess,
+  normalizeFeedbackRows,
 } from '@/utils/wordleLogic';
 import { todayStr, msUntilMidnight, formatCountdown, formatDisplayDate } from '@/utils/helpers';
 import type { LetterFeedback } from '@/types';
@@ -54,13 +54,14 @@ export function WordlePage() {
   useEffect(() => {
     if (!remote) {
       const progress = wordleService.getProgress(today);
-      setGuesses(progress?.guesses ?? []);
+      const localGuesses = progress?.guesses ?? [];
+      setGuesses(localGuesses);
+      if (localPuzzle?.word && localGuesses.length > 0) {
+        setFeedbackRows(localGuesses.map((g) => evaluateGuess(g, localPuzzle.word)));
+      }
       if (progress?.status === 'won' || progress?.status === 'lost') {
         setGameStatus('completed');
         setAnswer(localPuzzle?.word ?? null);
-        if (localPuzzle?.word) {
-          setFeedbackRows((progress.guesses ?? []).map((g) => evaluateGuess(g, localPuzzle.word)));
-        }
       }
       return;
     }
@@ -71,8 +72,9 @@ export function WordlePage() {
       .then((p) => {
         setRemotePuzzle(p);
         if (p?.attempt) {
-          setGuesses(p.attempt.guesses ?? []);
-          setFeedbackRows((p.attempt.feedback as LetterFeedback[][]) ?? []);
+          const loadedGuesses = p.attempt.guesses ?? [];
+          setGuesses(loadedGuesses);
+          setFeedbackRows(normalizeFeedbackRows(p.attempt.feedback, loadedGuesses, p.answer));
           if (p.attempt.status !== 'in_progress') {
             setGameStatus(p.attempt.status === 'won' ? 'won' : 'lost');
             setAnswer(p.answer);
@@ -87,7 +89,11 @@ export function WordlePage() {
   const hasPuzzle = remote ? !!remotePuzzle : !!localPuzzle;
   const isFinished = gameStatus === 'won' || gameStatus === 'lost' || gameStatus === 'completed';
   const showResultModal = showResult && isFinished;
-  const letterStatus = getKeyboardStatus(guesses, feedbackRows.length ? feedbackRows : answer ?? '');
+  const revealedCount = revealingRow === null ? guesses.length : revealingRow;
+  const letterStatus = getKeyboardStatus(
+    guesses.slice(0, revealedCount),
+    feedbackRows.length ? feedbackRows.slice(0, revealedCount) : answer ?? '',
+  );
 
   const submitGuess = useCallback(async () => {
     if (isFinished || submitting) return;
@@ -98,10 +104,11 @@ export function WordlePage() {
       toast('Not enough letters', 'warning');
       return;
     }
-    if (!isValidGuess(currentGuess)) {
+    if (!(await wordleService.isAllowedWord(currentGuess))) {
       setShakeRow(true);
       if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
       shakeTimerRef.current = setTimeout(() => setShakeRow(false), 400);
+      toast('Not in word list', 'warning');
       return;
     }
 
@@ -116,7 +123,12 @@ export function WordlePage() {
         const result = await wordleService.submitGuess(currentGuess);
         const newGuesses = result.guesses;
         setGuesses(newGuesses);
-        setFeedbackRows(result.all_feedback);
+        const fromServer = normalizeFeedbackRows(result.all_feedback, newGuesses, result.answer);
+        setFeedbackRows(
+          fromServer.length === newGuesses.length
+            ? fromServer
+            : [...normalizeFeedbackRows(feedbackRows, guesses, answer), result.feedback],
+        );
         setCurrentGuess('');
         setRevealingRow(newGuesses.length - 1);
         setTimeout(() => {
@@ -132,9 +144,17 @@ export function WordlePage() {
             setShowResult(true);
             toast('Out of guesses', 'info');
           }
-        }, WORDLE_WORD_LENGTH * 150 + 300);
+        }, (WORDLE_WORD_LENGTH - 1) * 150 + 500);
       } catch (err) {
-        toast(err instanceof Error ? err.message : 'Guess failed', 'error');
+        const message = err instanceof Error ? err.message : 'Guess failed';
+        if (/not in word list/i.test(message)) {
+          setShakeRow(true);
+          if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+          shakeTimerRef.current = setTimeout(() => setShakeRow(false), 400);
+          toast('Not in word list', 'warning');
+        } else {
+          toast(message, 'error');
+        }
       } finally {
         setSubmitting(false);
       }
@@ -162,8 +182,8 @@ export function WordlePage() {
         wordleService.saveProgress({ date: today, guesses: newGuesses, status: 'lost' });
         toast('The word was ' + localAnswer, 'info');
       }
-    }, WORDLE_WORD_LENGTH * 150 + 300);
-  }, [isFinished, submitting, currentGuess, remote, user, navigate, toast, guesses, localPuzzle?.word, today]);
+    }, (WORDLE_WORD_LENGTH - 1) * 150 + 500);
+  }, [isFinished, submitting, currentGuess, remote, user, navigate, toast, guesses, feedbackRows, answer, localPuzzle?.word, today]);
 
   const handleKey = useCallback((key: string) => {
     if (isFinished || revealingRow !== null || submitting) return;

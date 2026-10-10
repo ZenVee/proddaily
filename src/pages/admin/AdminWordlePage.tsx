@@ -8,7 +8,9 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { wordleService } from '@/services/wordleService';
 import { adminService } from '@/services/adminService';
+import { WordleWordList } from '@/components/admin/WordleWordList';
 import { useToast } from '@/state/ToastContext';
+import { useAuth } from '@/state/AuthContext';
 import { todayStr, formatDisplayDate, parseDate, addDays, cn } from '@/utils/helpers';
 import type { WordlePuzzle } from '@/types';
 import { Plus, Pencil, Trash2, Eye, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -22,6 +24,8 @@ const statusVariant: Record<string, 'green' | 'yellow' | 'blue' | 'default'> = {
 
 export function AdminWordlePage() {
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
+  const [tab, setTab] = useState<'schedule' | 'words'>('schedule');
   const [puzzles, setPuzzles] = useState<WordlePuzzle[]>([]);
 
   useEffect(() => {
@@ -72,6 +76,10 @@ export function AdminWordlePage() {
     }
     if (!/^[A-Z]+$/.test(word)) {
       setWordError('Word must contain only letters A-Z.');
+      return;
+    }
+    if (!(await wordleService.isAllowedWord(word))) {
+      setWordError('Not in word list.');
       return;
     }
 
@@ -133,9 +141,31 @@ export function AdminWordlePage() {
     <AdminLayout current="Wordle Manager">
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-proddaily-text mb-1">Wordle Manager</h1>
-        <p className="text-sm text-proddaily-text-2">Schedule and manage daily Prod Daily Wordle puzzles.</p>
+        <p className="text-sm text-proddaily-text-2">Schedule daily puzzles and edit the allowed guess list.</p>
       </div>
 
+      <div className="flex gap-4 mb-6 border-b border-proddaily-border">
+        <button
+          onClick={() => setTab('schedule')}
+          className={tab === 'schedule'
+            ? 'pd-accent-text border-b-2 pd-accent-border px-2 py-1 text-sm font-serif'
+            : 'text-proddaily-text-2 px-2 py-1 text-sm font-serif'}
+        >
+          Schedule
+        </button>
+        <button
+          onClick={() => setTab('words')}
+          className={tab === 'words'
+            ? 'pd-accent-text border-b-2 pd-accent-border px-2 py-1 text-sm font-serif'
+            : 'text-proddaily-text-2 px-2 py-1 text-sm font-serif'}
+        >
+          Allowed words
+        </button>
+      </div>
+
+      {tab === 'words' ? (
+        <WordleWordList canEdit={hasPermission('wordle.edit')} />
+      ) : (
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Calendar */}
         <div className="lg:w-1/2">
@@ -271,6 +301,7 @@ export function AdminWordlePage() {
           </Card>
         </div>
       </div>
+      )}
 
       {/* Create/Edit modal */}
       <Modal

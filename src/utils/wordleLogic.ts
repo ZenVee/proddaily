@@ -1,7 +1,51 @@
 import type { LetterFeedback } from '@/types';
+import { WORDLE_ALLOWED_WORDS } from '@/data/wordleAllowedWords';
 
 export const WORDLE_MAX_GUESSES = 6;
 export const WORDLE_WORD_LENGTH = 5;
+
+const FEEDBACK_VALUES = new Set<LetterFeedback>(['correct', 'present', 'absent']);
+
+export function isFeedbackRow(value: unknown): value is LetterFeedback[] {
+  return (
+    Array.isArray(value) &&
+    value.length === WORDLE_WORD_LENGTH &&
+    value.every((v) => typeof v === 'string' && FEEDBACK_VALUES.has(v as LetterFeedback))
+  );
+}
+
+/**
+ * Normalize server/local feedback into per-guess rows.
+ * Handles legacy flat arrays produced by a jsonb || bug.
+ */
+export function normalizeFeedbackRows(
+  raw: unknown,
+  guesses: string[],
+  answer?: string | null,
+): LetterFeedback[][] {
+  if (Array.isArray(raw) && raw.length > 0) {
+    if (isFeedbackRow(raw[0])) {
+      return (raw as unknown[]).filter(isFeedbackRow);
+    }
+
+    // Flat ["correct","absent",...] — chunk into rows of 5
+    if (typeof raw[0] === 'string' && FEEDBACK_VALUES.has(raw[0] as LetterFeedback)) {
+      const flat = raw as LetterFeedback[];
+      const rows: LetterFeedback[][] = [];
+      for (let i = 0; i + WORDLE_WORD_LENGTH <= flat.length; i += WORDLE_WORD_LENGTH) {
+        const chunk = flat.slice(i, i + WORDLE_WORD_LENGTH);
+        if (isFeedbackRow(chunk)) rows.push(chunk);
+      }
+      if (rows.length > 0) return rows;
+    }
+  }
+
+  if (answer) {
+    return guesses.map((g) => evaluateGuess(g, answer));
+  }
+
+  return [];
+}
 
 /**
  * Evaluate a guess against the answer, returning per-letter feedback.
@@ -86,7 +130,7 @@ export function buildShareTextFromFeedback(
 }
 
 export function isValidGuess(guess: string): boolean {
-  return guess.length === WORDLE_WORD_LENGTH && /^[A-Z]+$/.test(guess);
+  return WORDLE_ALLOWED_WORDS.has(guess.toUpperCase());
 }
 
 export function buildShareText(
