@@ -24,7 +24,7 @@ Browser (`.env`):
 
 Server-only (Supabase Dashboard / Edge Function secrets):
 
-- `SUPABASE_SERVICE_ROLE_KEY` (never in `VITE_*`)
+- Secret API key (`sb_secret_…`) — never in `VITE_*`. Hosted Edge Functions inject `SUPABASE_SECRET_KEYS` (JSON map; use `default`)
 - Discord client secret (Auth provider settings only)
 
 ## 4. Database migrations
@@ -34,6 +34,8 @@ Apply in order against a fresh project:
 1. `supabase/migrations/migration_001_initial_schema.sql` (or run `master_schema.sql`)
 2. `supabase/migrations/migration_002_storage_avatars.sql`
 3. `supabase/migrations/migration_003_profile_public_slug.sql` (included in updated `master_schema.sql`)
+4. `supabase/migrations/migration_004_fix_wordle_feedback_nesting.sql` (included in updated `master_schema.sql`)
+5. `supabase/migrations/migration_005_admin_reset_user_stats.sql` (included in updated `master_schema.sql`)
 
 Public profile URLs use `/profile/{stateid-nickname}` or `/profile/{stateid-firstname-lastname}` (not UUIDs). UUID refs still resolve and should redirect to the slug.
 
@@ -68,10 +70,25 @@ Bucket: `avatars` (public read, user-folder write). Paths: `{user_id}/avatar.*`.
 
 ## 8. Edge Functions
 
+Required for Wordle guess validation: `supabase/functions/wordle-check-word`.
+
+Flow: check curated `wordle_allowed_words` via `is_allowed_wordle_word`, then Datamuse (`sp=word&max=1`, exact match). Datamuse hits are upserted into `wordle_allowed_words` with the secret API key so `submit_wordle_guess` stays DB-authoritative. Puzzle answers remain curated-only (no Datamuse on the answer trigger). Fail closed if Datamuse is unreachable.
+
+Hosted Edge Functions inject (do not put these in `VITE_*`):
+
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEYS` / `SUPABASE_SECRET_KEYS` (JSON maps; function reads `['default']`)
+- Local CLI may use singular `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY`
+
+```bash
+supabase functions deploy wordle-check-word
+```
+
 Optional: `supabase/functions/wordle-guess` wraps `submit_wordle_guess`.
 
-Primary gameplay uses Postgres RPCs directly with the user JWT:
+Primary gameplay uses Postgres RPCs directly with the user JWT; word checks go through the Edge Function:
 
+- `wordle-check-word` (Edge) → curated list, then Datamuse + cache
 - `get_active_wordle_puzzle` / `submit_wordle_guess`
 - `get_published_crosswords` / `get_crossword_for_play` / `save_crossword_progress` / `complete_crossword`
 
@@ -112,4 +129,5 @@ See plan §19: auth flows, role denial, Wordle guess rules, crossword publish/pr
 - Run SQL migrations (SQL editor or CLI)
 - Confirm `avatars` bucket exists
 - Bootstrap first Developer
-- (Optional) deploy Edge Functions
+- Deploy `wordle-check-word` (confirm `SUPABASE_SECRET_KEYS` is available to Edge Functions)
+- (Optional) deploy other Edge Functions
