@@ -31,9 +31,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    const publishableRaw = Deno.env.get('SUPABASE_PUBLISHABLE_KEYS');
+    let publishableKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '';
+    if (publishableRaw) {
+      try {
+        publishableKey = (JSON.parse(publishableRaw) as Record<string, string>)['default'] ?? publishableKey;
+      } catch {
+        /* keep singular */
+      }
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '',
+      publishableKey,
       { global: { headers: { Authorization: authHeader } } }
     );
 
